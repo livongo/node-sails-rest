@@ -187,10 +187,26 @@ module.exports = (function(){
 
       // Make request via restify
       if (opt) {
-        connection[restMethod](path, opt, callback);
+        async.forEachSeries(config.middleware, function (middleware, loopCallback) {
+          middleware(connection, opt, collectionName, loopCallback);
+        }, function (err) {
+          if (err){
+            return cb(new Error(err));
+          }
+
+          connection[restMethod](path, opt, callback);
+        });
       }
       else {
-        connection[restMethod](path, callback);
+        async.forEachSeries(config.middleware, function (middleware, loopCallback) {
+          middleware(connection, loopCallback);
+        }, function (err) {
+          if (err) {
+            return cb(new Error(err));
+          }
+
+          connection[restMethod](path, callback);
+        });
       }
     }
     else {
@@ -220,6 +236,7 @@ module.exports = (function(){
         update: 'put',
         destroy: 'del'
       },
+      middleware: function () { return []; },
       beforeFormatResult: null,
       afterFormatResult: null,
       beforeFormatResults: null,
@@ -244,6 +261,7 @@ module.exports = (function(){
           resource: c.resource || collection.identity,
           action: c.action,
           methods: _.extend({}, collection.defaults.methods, c.methods),
+          middleware: c.middleware(),
           beforeFormatResult: c.beforeFormatResult,
           afterFormatResult: c.afterFormatResult,
           beforeFormatResults: c.beforeFormatResults,
