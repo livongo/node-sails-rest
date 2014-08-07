@@ -41,6 +41,15 @@ module.exports.adapters = {
       update: 'put',
       destroy: 'del'
     },
+    middleware: function () {
+      
+      function doSomethingBeforeSending(connection, opt, collectionName, next) {
+        // add your custom logic here
+        next(); // call next() to run next middleware logic or execute the REST request
+      }
+
+      return [doSomethingBeforeSending];  // return array of middleware functions to run
+    },
     beforeFormatResult: function(result){return result},    // alter result prior to formatting
     afterFormatResult: function(result){return result},     // alter result after formatting
     beforeFormatResults: function(results){return results}, // alter results prior to formatting
