@@ -8,7 +8,7 @@ var Errors = require('waterline-errors').adapter,
   restify = require('restify'),
   url = require('url'),
   _ = require('lodash'),
-  _i = require('underscore.inflections'),
+  _i = null,
   _s = require('underscore.string');
 
 module.exports = (function() {
@@ -99,8 +99,23 @@ module.exports = (function() {
    * @param {Object} options - options passed from the calling method
    * @returns {Object}
    */
-  function getPathname(config, method, values, options){
+  function getPathname(config, method, values, options) {
     return config.pathname + '/' + config.resource + (config.action ? '/' + config.action : '');
+  }
+
+  /**
+   * Generate a resource name to use for a request
+   * @param {Object} config - connection configuration
+   * @param {String} collectionName - collection name
+   * @returns {String}
+   */
+  function getResourceName(config, collectionName) {
+    var resource = collectionName;
+    if (config.pluralize) {
+      _i = _i || require('underscore.inflections');
+      resource = _i.pluralize(resource);
+    }
+    return resource;
   }
 
   /**
@@ -138,10 +153,9 @@ module.exports = (function() {
       });
     }
 
-    // if resource name not set in config,
-    // try to get it from pluralized form of collectionName
+    // If resource name not set in config, generate one
     if (!config.resource) {
-      config.resource = _i.pluralize(collectionName);
+      config.resource = config.getResourceName(config, collectionName);
     }
 
     pathname = config.getPathname(config, restMethod, values, options);
@@ -266,6 +280,7 @@ module.exports = (function() {
         destroy: 'del'
       },
       getPathname: getPathname,
+      getResourceName: getResourceName,
       beforeFormatResult: null,
       afterFormatResult: null,
       beforeFormatResults: null,
