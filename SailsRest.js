@@ -4,7 +4,6 @@
 ---------------------------------------------------------------*/
 
 var Errors = require('waterline-errors').adapter,
-  async = require('async'),
   restify = require('restify'),
   url = require('url'),
   _ = require('lodash'),
@@ -36,7 +35,7 @@ module.exports = (function() {
    */
   function formatResult(result, collectionName, config, definition) {
     if (_.isFunction(config.beforeFormatResult)) {
-      result = config.beforeFormatResult(result);
+      result = config.beforeFormatResult(result, collectionName, config, definition);
     }
 
     _.each(definition, function(def, key) {
@@ -46,7 +45,7 @@ module.exports = (function() {
     });
 
     if (_.isFunction(config.afterFormatResult)) {
-      result = config.afterFormatResult(result);
+      result = config.afterFormatResult(result, collectionName, config, definition);
     }
 
     return result;
@@ -62,7 +61,7 @@ module.exports = (function() {
    */
   function formatResults(results, collectionName, config, definition) {
     if (_.isFunction(config.beforeFormatResults)) {
-      results = config.beforeFormatResults(results);
+      results = config.beforeFormatResults(results, collectionName, config, definition);
     }
 
     results.forEach(function(result) {
@@ -70,7 +69,7 @@ module.exports = (function() {
     });
 
     if (_.isFunction(config.afterFormatResults)) {
-      results = config.afterFormatResults(results);
+      results = config.afterFormatResults(results, collectionName, config, definition);
     }
 
     return results;
@@ -116,6 +115,35 @@ module.exports = (function() {
       resource = _i.pluralize(resource);
     }
     return resource;
+  }
+
+  /**
+   * Generate the query string for GET requests
+   * @param {Object} config - connection configuration
+   * @param {String} collectionName - collection the result object belongs to
+   * @param {String} methodName - name of CRUD method being used
+   * @param {Object} options - options passed from the calling method
+   * @returns {Object}
+   */
+  function getQuery(config, collectionName, methodName, options){
+
+    if (_.isFunction(config.query)) {
+      return config.query(config, collectionName, methodName, options);
+    }
+    else {
+
+      var query = config.query;
+
+      _.extend(query, (options.where || {}));
+      ['skip', 'limit', 'offset'].forEach(function(key){
+        if(options[key] !== undefined){
+          query[key] = options[key];
+        }
+      });
+
+      return query;
+
+    }
   }
 
   /**
@@ -187,12 +215,7 @@ module.exports = (function() {
 
       // Add where statement as query parameters if requesting via GET
       if (restMethod === 'get') {
-        _.extend(config.query, (options.where || {}));
-        ['skip', 'limit', 'offset'].forEach(function(key){
-          if(options[key] !== undefined){
-            config.query[key] = options[key];
-          }
-        });
+        config.query = getQuery(config, collectionName, methodName, options);
       }
       // Set opt if additional where statements are available
       else if (_.size(options.where)) {
@@ -232,7 +255,7 @@ module.exports = (function() {
             responseErrorCode = res && /^(4|5)\d+$/.test(res.statusCode.toString());
 
         if (err && ( res === undefined || res === null || responseErrorCode ) ) {
-          restError = new RestError(err.message, {req: req, res: res, data: data});
+          restError = new RestError(err.message, {originalError: err, data: data});
           callback(restError);
         } else {
           if (methodName === 'find') {
@@ -269,6 +292,7 @@ module.exports = (function() {
       protocol: 'http',
       hostname: 'localhost',
       port: 80,
+      rejectUnauthorized: true,
       pathname: '',
       resource: null,
       action: null,
@@ -310,7 +334,8 @@ module.exports = (function() {
             host: config.host,
             port: config.port
           }),
-          headers: config.headers
+          headers: config.headers,
+          rejectUnauthorized: config.rejectUnauthorized
         })
       };
 
