@@ -225,6 +225,7 @@ module.exports = (function() {
       }
     }
 
+    // Set `opt` to be the request body for POST, PUT, etc.
     if (!opt && values) {
       opt = values;
 
@@ -325,18 +326,24 @@ module.exports = (function() {
         throw new Error('Invalid type provided: ' + config.type);
       }
 
+      var restifyConfig = {
+        url: url.format({
+          protocol: config.protocol,
+          hostname: config.hostname,
+          host: config.host,
+          port: config.port
+        }),
+        headers: config.headers,
+        rejectUnauthorized: config.rejectUnauthorized
+      };
+
+      // If the collection has `restify` option defined, merge it in.
+      if (config.restify)
+        _.extend(restifyConfig, config.restify);
+
       instance = {
         config: config,
-        connection: restify[clientMethod]({
-          url: url.format({
-            protocol: config.protocol,
-            hostname: config.hostname,
-            host: config.host,
-            port: config.port
-          }),
-          headers: config.headers,
-          rejectUnauthorized: config.rejectUnauthorized
-        })
+        connection: restify[clientMethod](restifyConfig)
       };
 
       if (config.basicAuth) {
