@@ -234,6 +234,9 @@ module.exports = (function() {
       }
     }
 
+    if (options && options.options)
+    opt = _.extend(opt, options)
+
     // Add pathname to connection
     config.pathname = pathname;
 
@@ -274,11 +277,18 @@ module.exports = (function() {
         }
       };
 
+      var requestOptions = {
+        path: path,
+        headers: {
+          my_header: 1
+        }
+      };
+
       // Make request via restify
       if (opt) {
-        connection[restMethod](path, opt, cb);
+        connection[restMethod](requestOptions, opt, cb);
       } else {
-        connection[restMethod](path, cb);
+        connection[restMethod](requestOptions, cb);
       }
     }
   }
